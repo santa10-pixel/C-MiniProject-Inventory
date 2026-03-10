@@ -631,7 +631,35 @@
     </div>
 </div>
 
-<script src="index.js"></script>
+<!-- Firebase SDK -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+    import { getFirestore, collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyDOCAbC123dEf456GhI789jKl01-MnO",
+        authDomain: "inventory-system-123.firebaseapp.com",
+        projectId: "inventory-system-123",
+        storageBucket: "inventory-system-123.appspot.com",
+        messagingSenderId: "1234567890",
+        appId: "1:1234567890:web:abc123def456"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const inventoryRef = collection(db, "inventory");
+
+    // Expose actions to global scope for HTML onclick attributes
+    window.db = db;
+    window.inventoryRef = inventoryRef;
+    window.doc = doc;
+    window.setDoc = setDoc;
+    window.getDoc = getDoc;
+    window.updateDoc = updateDoc;
+    window.deleteDoc = deleteDoc;
+</script>
 <script>
     // ── Theme ──────────────────────────────────────────────
     function toggleTheme() {
@@ -645,29 +673,27 @@
         document.getElementById('themeBtn').textContent = '☀️';
     }
 
-    // ── WASM ───────────────────────────────────────────────
-    let wasm_addProduct, wasm_updateStock, wasm_deleteProduct,
-        wasm_getProductCount, wasm_getProductId, wasm_getProductName,
-        wasm_getProductPrice, wasm_getProductQuantity, wasm_getTotalValue;
+    // ── Firebase Core Logic ────────────────────────────────
+    let products = [];
+    
+    // Hide loading immediately as we're no longer waiting for WASM
+    // We will show content, but data loads async from Firebase
+    document.getElementById('loadingIndicator').style.display = 'none';
+    document.getElementById('appContent').style.display = 'flex';
+    document.getElementById('appContent').style.flexDirection = 'column';
 
-    Module.onRuntimeInitialized = function() {
-        document.getElementById('loadingIndicator').style.display = 'none';
-        document.getElementById('appContent').style.display = 'flex';
-        document.getElementById('appContent').style.flexDirection = 'column';
-
-        wasm_addProduct        = Module.cwrap('addProduct',       'string', ['number','string','number','number']);
-        wasm_updateStock       = Module.cwrap('updateStock',      'string', ['number','number','number']);
-        wasm_deleteProduct     = Module.cwrap('deleteProduct',    'string', ['number']);
-        wasm_getProductCount   = Module.cwrap('getProductCount',  'number', []);
-        wasm_getProductId      = Module.cwrap('getProductId',     'number', ['number']);
-        wasm_getProductName    = Module.cwrap('getProductName',   'string', ['number']);
-        wasm_getProductPrice   = Module.cwrap('getProductPrice',  'number', ['number']);
-        wasm_getProductQuantity= Module.cwrap('getProductQuantity','number', ['number']);
-        wasm_getTotalValue     = Module.cwrap('getTotalValue',    'number', []);
-
-        Module.cwrap('init', 'void', [])();
-        refreshTable();
-    };
+    // Set up real-time listener to Firestore
+    import("https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js").then((module) => {
+        module.onSnapshot(window.inventoryRef, (snapshot) => {
+            products = [];
+            snapshot.forEach((doc) => {
+                products.push({ id: parseInt(doc.id), ...doc.data() });
+            });
+            // Sort by ID
+            products.sort((a,b) => a.id - b.id);
+            refreshTable();
+        });
+    });
 
     // ── Toast ──────────────────────────────────────────────
     let toastTimer;
@@ -675,6 +701,7 @@
         const el = document.getElementById('statusMessage');
         el.textContent = (isError ? '✗  ' : '✓  ') + msg;
         el.className = isError ? 'error-msg' : 'success-msg';
+        el.style.display = 'flex';
         clearTimeout(toastTimer);
         toastTimer = setTimeout(() => {
             el.className = '';
@@ -683,58 +710,107 @@
     }
 
     // ── Actions ────────────────────────────────────────────
-    function addProduct() {
-        const id    = parseInt(document.getElementById('addId').value);
+    async function addProduct() {
+        const idStr = document.getElementById('addId').value;
         const name  = document.getElementById('addName').value.trim();
         const price = parseFloat(document.getElementById('addPrice').value);
         const qty   = parseInt(document.getElementById('addQty').value);
-        if (!id || !name || isNaN(price) || isNaN(qty)) { showMessage('Please fill in all fields.', true); return; }
-        const res = wasm_addProduct(id, name, price, qty);
-        showMessage(res, res.includes('Error'));
-        if (!res.includes('Error')) {
+        
+        if (!idStr || !name || isNaN(price) || isNaN(qty)) {
+            showMessage('Please fill in all fields.', true);
+            return;
+        }
+        
+        const docRef = window.doc(window.db, "inventory", idStr);
+        const docSnap = await window.getDoc(docRef);
+        
+        if (docSnap.exists()) {
+            showMessage('Error: Product ID already exists!', true);
+            return;
+        }
+
+        try {
+            await window.setDoc(docRef, { name, price, qty });
+            showMessage('Product added successfully to Firebase!', false);
             ['addId','addName','addPrice','addQty'].forEach(x => document.getElementById(x).value = '');
-            refreshTable();
+        } catch (e) {
+            showMessage('Error writing to database: ' + e.message, true);
         }
     }
 
-    function updateStock() {
-        const id     = parseInt(document.getElementById('updateId').value);
+    async function updateStock() {
+        const idStr  = document.getElementById('updateId').value;
         const action = parseInt(document.getElementById('updateAction').value);
         const amount = parseInt(document.getElementById('updateAmount').value);
-        if (!id || !amount) { showMessage('Please provide an ID and amount.', true); return; }
-        const res = wasm_updateStock(id, amount, action);
-        showMessage(res, res.includes('Error'));
-        if (!res.includes('Error')) {
+        
+        if (!idStr || isNaN(amount)) {
+            showMessage('Please provide an ID and amount.', true);
+            return;
+        }
+
+        const docRef = window.doc(window.db, "inventory", idStr);
+        const docSnap = await window.getDoc(docRef);
+
+        if (!docSnap.exists()) {
+            showMessage('Error: Product ID not found.', true);
+            return;
+        }
+
+        let currentQty = docSnap.data().qty;
+        
+        if (action === 1) {
+            currentQty += amount;
+        } else {
+            if (currentQty < amount) {
+                showMessage('Error: Insufficient stock for sale.', true);
+                return;
+            }
+            currentQty -= amount;
+        }
+
+        try {
+            await window.updateDoc(docRef, { qty: currentQty });
+            showMessage('Stock updated successfully online!', false);
             ['updateId','updateAmount'].forEach(x => document.getElementById(x).value = '');
-            refreshTable();
+        } catch (e) {
+            showMessage('Error updating database: ' + e.message, true);
         }
     }
 
-    function deleteProduct() {
-        const id = parseInt(document.getElementById('deleteId').value);
-        if (!id) { showMessage('Please enter a Product ID to remove.', true); return; }
-        const res = wasm_deleteProduct(id);
-        showMessage(res, res.includes('Error'));
-        if (!res.includes('Error')) {
+    async function deleteProduct() {
+        const idStr = document.getElementById('deleteId').value;
+        if (!idStr) { showMessage('Please enter a Product ID to remove.', true); return; }
+        
+        const docRef = window.doc(window.db, "inventory", idStr);
+        const docSnap = await window.getDoc(docRef);
+
+        if (!docSnap.exists()) {
+            showMessage('Error: Product ID not found.', true);
+            return;
+        }
+
+        try {
+            await window.deleteDoc(docRef);
+            showMessage('Product deleted from Firebase successfully.', false);
             document.getElementById('deleteId').value = '';
-            refreshTable();
+        } catch(e) {
+            showMessage('Error deleting document: ' + e.message, true);
         }
     }
 
     // ── Refresh ────────────────────────────────────────────
     function refreshTable() {
-        const count = wasm_getProductCount();
         const tbody   = document.getElementById('inventoryTable');
         const lowbody = document.getElementById('lowStockTable');
         tbody.innerHTML = '';
         lowbody.innerHTML = '';
+        
         let lowCount = 0;
+        let totalValue = 0;
 
-        for (let i = 0; i < count; i++) {
-            const id    = wasm_getProductId(i);
-            const name  = wasm_getProductName(i);
-            const price = wasm_getProductPrice(i);
-            const qty   = wasm_getProductQuantity(i);
+        products.forEach(p => {
+            const { id, name, price, qty } = p;
+            totalValue += (price * qty);
 
             let pillClass, pillText;
             if (qty === 0)     { pillClass = 'pill pill-out';  pillText = 'Out of stock'; }
@@ -759,17 +835,17 @@
                         <td><span class="${pillClass}">${qty}</span></td>
                     </tr>`;
             }
-        }
+        });
 
-        if (count === 0) {
+        if (products.length === 0) {
             tbody.innerHTML = '<tr class="empty-note"><td colspan="5">No products yet — add one from the sidebar.</td></tr>';
         }
         if (lowCount === 0) {
             lowbody.innerHTML = '<tr class="empty-note"><td colspan="3">All products are well-stocked.</td></tr>';
         }
 
-        document.getElementById('statTypes').textContent = count;
-        document.getElementById('statValue').textContent = '₹' + wasm_getTotalValue().toFixed(2);
+        document.getElementById('statTypes').textContent = products.length;
+        document.getElementById('statValue').textContent = '₹' + totalValue.toFixed(2);
     }
 </script>
 </body>
