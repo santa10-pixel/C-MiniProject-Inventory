@@ -1,0 +1,9 @@
+# Compiled binaries
+a.out
+app
+main
+index.wasm
+index.js
+
+# Data files
+*.dat
