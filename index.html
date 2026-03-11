@@ -178,7 +178,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 7px;
+            gap: 5px;
             width: 100%;
             padding: 7px 12px;
             border-radius: var(--r);
@@ -210,23 +210,6 @@
             color: white;
             border-color: transparent;
             transform: translateY(-1px);
-        }
-        
-        /* ─── Icons ──────────── */
-        .icon {
-            width: 14px;
-            height: 14px;
-            stroke: currentColor;
-            stroke-width: 2;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-            fill: none;
-        }
-
-        .section-label {
-            display: flex;
-            align-items: center;
-            gap: 6px;
         }
 
         /* sidebar footer */
@@ -511,10 +494,7 @@
     </div>
 
     <!-- Add Product -->
-    <span class="section-label">
-        <svg class="icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-        Add Product
-    </span>
+    <span class="section-label">Add Product</span>
     <div class="form-block">
         <div class="field">
             <label>Product ID</label>
@@ -532,17 +512,11 @@
             <label>Quantity</label>
             <input type="number" id="addQty" min="0" placeholder="0">
         </div>
-        <button class="btn btn-primary" onclick="addProduct()">
-            <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Add Product
-        </button>
+        <button class="btn btn-primary" onclick="addProduct()">+ Add Product</button>
     </div>
 
     <!-- Update Stock -->
-    <span class="section-label">
-        <svg class="icon" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        Update Stock
-    </span>
+    <span class="section-label">Update Stock</span>
     <div class="form-block">
         <div class="field">
             <label>Product ID</label>
@@ -563,10 +537,7 @@
     </div>
 
     <!-- Delete -->
-    <span class="section-label">
-        <svg class="icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-        Remove Product
-    </span>
+    <span class="section-label">Remove Product</span>
     <div class="form-block">
         <div class="field" style="margin-bottom: 10px;">
             <label>Product ID</label>
@@ -621,10 +592,7 @@
                     <div class="table-header-title">Product Inventory</div>
                     <div class="table-header-sub">All items currently in stock</div>
                 </div>
-                <button class="refresh-btn" onclick="refreshTable()">
-                    <svg class="icon" viewBox="0 0 24 24" style="margin-right:4px; margin-bottom:-2px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                    Refresh
-                </button>
+                <button class="refresh-btn" onclick="refreshTable()">↻ Refresh</button>
             </div>
             <table>
                 <thead>
@@ -663,35 +631,7 @@
     </div>
 </div>
 
-<!-- Firebase SDK -->
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
-    import { getFirestore, collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
-
-    // Your web app's Firebase configuration
-    const firebaseConfig = {
-        apiKey: "AIzaSyDOCAbC123dEf456GhI789jKl01-MnO",
-        authDomain: "inventory-system-123.firebaseapp.com",
-        projectId: "inventory-system-123",
-        storageBucket: "inventory-system-123.appspot.com",
-        messagingSenderId: "1234567890",
-        appId: "1:1234567890:web:abc123def456"
-    };
-
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const inventoryRef = collection(db, "inventory");
-
-    // Expose actions to global scope for HTML onclick attributes
-    window.db = db;
-    window.inventoryRef = inventoryRef;
-    window.doc = doc;
-    window.setDoc = setDoc;
-    window.getDoc = getDoc;
-    window.updateDoc = updateDoc;
-    window.deleteDoc = deleteDoc;
-</script>
+<script src="index.js"></script>
 <script>
     // ── Theme ──────────────────────────────────────────────
     function toggleTheme() {
@@ -705,27 +645,29 @@
         document.getElementById('themeBtn').textContent = '☀️';
     }
 
-    // ── Firebase Core Logic ────────────────────────────────
-    let products = [];
-    
-    // Hide loading immediately as we're no longer waiting for WASM
-    // We will show content, but data loads async from Firebase
-    document.getElementById('loadingIndicator').style.display = 'none';
-    document.getElementById('appContent').style.display = 'flex';
-    document.getElementById('appContent').style.flexDirection = 'column';
+    // ── WASM ───────────────────────────────────────────────
+    let wasm_addProduct, wasm_updateStock, wasm_deleteProduct,
+        wasm_getProductCount, wasm_getProductId, wasm_getProductName,
+        wasm_getProductPrice, wasm_getProductQuantity, wasm_getTotalValue;
 
-    // Set up real-time listener to Firestore
-    import("https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js").then((module) => {
-        module.onSnapshot(window.inventoryRef, (snapshot) => {
-            products = [];
-            snapshot.forEach((doc) => {
-                products.push({ id: parseInt(doc.id), ...doc.data() });
-            });
-            // Sort by ID
-            products.sort((a,b) => a.id - b.id);
-            refreshTable();
-        });
-    });
+    Module.onRuntimeInitialized = function() {
+        document.getElementById('loadingIndicator').style.display = 'none';
+        document.getElementById('appContent').style.display = 'flex';
+        document.getElementById('appContent').style.flexDirection = 'column';
+
+        wasm_addProduct        = Module.cwrap('addProduct',       'string', ['number','string','number','number']);
+        wasm_updateStock       = Module.cwrap('updateStock',      'string', ['number','number','number']);
+        wasm_deleteProduct     = Module.cwrap('deleteProduct',    'string', ['number']);
+        wasm_getProductCount   = Module.cwrap('getProductCount',  'number', []);
+        wasm_getProductId      = Module.cwrap('getProductId',     'number', ['number']);
+        wasm_getProductName    = Module.cwrap('getProductName',   'string', ['number']);
+        wasm_getProductPrice   = Module.cwrap('getProductPrice',  'number', ['number']);
+        wasm_getProductQuantity= Module.cwrap('getProductQuantity','number', ['number']);
+        wasm_getTotalValue     = Module.cwrap('getTotalValue',    'number', []);
+
+        Module.cwrap('init', 'void', [])();
+        refreshTable();
+    };
 
     // ── Toast ──────────────────────────────────────────────
     let toastTimer;
@@ -733,7 +675,6 @@
         const el = document.getElementById('statusMessage');
         el.textContent = (isError ? '✗  ' : '✓  ') + msg;
         el.className = isError ? 'error-msg' : 'success-msg';
-        el.style.display = 'flex';
         clearTimeout(toastTimer);
         toastTimer = setTimeout(() => {
             el.className = '';
@@ -742,107 +683,58 @@
     }
 
     // ── Actions ────────────────────────────────────────────
-    async function addProduct() {
-        const idStr = document.getElementById('addId').value;
+    function addProduct() {
+        const id    = parseInt(document.getElementById('addId').value);
         const name  = document.getElementById('addName').value.trim();
         const price = parseFloat(document.getElementById('addPrice').value);
         const qty   = parseInt(document.getElementById('addQty').value);
-        
-        if (!idStr || !name || isNaN(price) || isNaN(qty)) {
-            showMessage('Please fill in all fields.', true);
-            return;
-        }
-        
-        const docRef = window.doc(window.db, "inventory", idStr);
-        const docSnap = await window.getDoc(docRef);
-        
-        if (docSnap.exists()) {
-            showMessage('Error: Product ID already exists!', true);
-            return;
-        }
-
-        try {
-            await window.setDoc(docRef, { name, price, qty });
-            showMessage('Product added successfully to Firebase!', false);
+        if (!id || !name || isNaN(price) || isNaN(qty)) { showMessage('Please fill in all fields.', true); return; }
+        const res = wasm_addProduct(id, name, price, qty);
+        showMessage(res, res.includes('Error'));
+        if (!res.includes('Error')) {
             ['addId','addName','addPrice','addQty'].forEach(x => document.getElementById(x).value = '');
-        } catch (e) {
-            showMessage('Error writing to database: ' + e.message, true);
+            refreshTable();
         }
     }
 
-    async function updateStock() {
-        const idStr  = document.getElementById('updateId').value;
+    function updateStock() {
+        const id     = parseInt(document.getElementById('updateId').value);
         const action = parseInt(document.getElementById('updateAction').value);
         const amount = parseInt(document.getElementById('updateAmount').value);
-        
-        if (!idStr || isNaN(amount)) {
-            showMessage('Please provide an ID and amount.', true);
-            return;
-        }
-
-        const docRef = window.doc(window.db, "inventory", idStr);
-        const docSnap = await window.getDoc(docRef);
-
-        if (!docSnap.exists()) {
-            showMessage('Error: Product ID not found.', true);
-            return;
-        }
-
-        let currentQty = docSnap.data().qty;
-        
-        if (action === 1) {
-            currentQty += amount;
-        } else {
-            if (currentQty < amount) {
-                showMessage('Error: Insufficient stock for sale.', true);
-                return;
-            }
-            currentQty -= amount;
-        }
-
-        try {
-            await window.updateDoc(docRef, { qty: currentQty });
-            showMessage('Stock updated successfully online!', false);
+        if (!id || !amount) { showMessage('Please provide an ID and amount.', true); return; }
+        const res = wasm_updateStock(id, amount, action);
+        showMessage(res, res.includes('Error'));
+        if (!res.includes('Error')) {
             ['updateId','updateAmount'].forEach(x => document.getElementById(x).value = '');
-        } catch (e) {
-            showMessage('Error updating database: ' + e.message, true);
+            refreshTable();
         }
     }
 
-    async function deleteProduct() {
-        const idStr = document.getElementById('deleteId').value;
-        if (!idStr) { showMessage('Please enter a Product ID to remove.', true); return; }
-        
-        const docRef = window.doc(window.db, "inventory", idStr);
-        const docSnap = await window.getDoc(docRef);
-
-        if (!docSnap.exists()) {
-            showMessage('Error: Product ID not found.', true);
-            return;
-        }
-
-        try {
-            await window.deleteDoc(docRef);
-            showMessage('Product deleted from Firebase successfully.', false);
+    function deleteProduct() {
+        const id = parseInt(document.getElementById('deleteId').value);
+        if (!id) { showMessage('Please enter a Product ID to remove.', true); return; }
+        const res = wasm_deleteProduct(id);
+        showMessage(res, res.includes('Error'));
+        if (!res.includes('Error')) {
             document.getElementById('deleteId').value = '';
-        } catch(e) {
-            showMessage('Error deleting document: ' + e.message, true);
+            refreshTable();
         }
     }
 
     // ── Refresh ────────────────────────────────────────────
     function refreshTable() {
+        const count = wasm_getProductCount();
         const tbody   = document.getElementById('inventoryTable');
         const lowbody = document.getElementById('lowStockTable');
         tbody.innerHTML = '';
         lowbody.innerHTML = '';
-        
         let lowCount = 0;
-        let totalValue = 0;
 
-        products.forEach(p => {
-            const { id, name, price, qty } = p;
-            totalValue += (price * qty);
+        for (let i = 0; i < count; i++) {
+            const id    = wasm_getProductId(i);
+            const name  = wasm_getProductName(i);
+            const price = wasm_getProductPrice(i);
+            const qty   = wasm_getProductQuantity(i);
 
             let pillClass, pillText;
             if (qty === 0)     { pillClass = 'pill pill-out';  pillText = 'Out of stock'; }
@@ -867,17 +759,17 @@
                         <td><span class="${pillClass}">${qty}</span></td>
                     </tr>`;
             }
-        });
+        }
 
-        if (products.length === 0) {
+        if (count === 0) {
             tbody.innerHTML = '<tr class="empty-note"><td colspan="5">No products yet — add one from the sidebar.</td></tr>';
         }
         if (lowCount === 0) {
             lowbody.innerHTML = '<tr class="empty-note"><td colspan="3">All products are well-stocked.</td></tr>';
         }
 
-        document.getElementById('statTypes').textContent = products.length;
-        document.getElementById('statValue').textContent = '₹' + totalValue.toFixed(2);
+        document.getElementById('statTypes').textContent = count;
+        document.getElementById('statValue').textContent = '₹' + wasm_getTotalValue().toFixed(2);
     }
 </script>
 </body>
